@@ -1,12 +1,16 @@
 @file:OptIn(UnsafeWasmMemoryApi::class)
 
 
-import readImpl
 import kotlin.wasm.unsafe.MemoryAllocator
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
 
 private const val STDIN=0
+
+private const val PREADSIZE=32
+private const val PREADSCATER=1
+
+private const val WHENCECUR=1 // Don't know for sure but `WasmImport` works only for functions.
 
 /**
  * Read from a file descriptor. Note: This is similar to `readv` in POSIX.
@@ -15,10 +19,32 @@ private const val STDIN=0
 @WasmImport("wasi_snapshot_preview1", "fd_read")
 private external fun wasiRawFdRead(descriptor: Int, scatterPtr: Int, scatterSize: Int, errorPtr: Int): Int
 
+/**
+ * Read from a file descriptor with offset without moving file descriptor offset. Note:
+ * This is similar to `preadv` in POSIX.
+ */
+@ExperimentalWasmInterop
+@WasmImport("wasi_snapshot_preview1", "fd_pread")
+private external fun wasiRawFdPRead(descriptor: Int, scatterPtr: Int, scatterSize: Int, offset:Int, errorPtr: Int): Int
+
+/**
+ * Move the offset of a file descriptor. Note: This is similar to `lseek` in POSIX.
+ */
+@ExperimentalWasmInterop
+@WasmImport("wasi_snapshot_preview1", "fd_seek")
+private external fun wasiRawFdSeek(descriptor: Int, offset:Int, whence:Int, newOffset:Int):Int
+
+/**
+ * Get the attributes of a file descriptor. Note: This returns similar flags to `fcntl(fd, F_GETFL)` in POSIX, as well
+ * as additional fields.
+ */
 @ExperimentalWasmInterop
 @WasmImport("wasi_snapshot_preview1", "fd_fdstat_get")
 private external fun wasiRawFdStatGet(descriptor: Int, metadataPtr: Int): Int
 
+/**
+ * Checks if standard input file descriptor has a right to use `fd_seek`
+ */
 @OptIn(ExperimentalWasmInterop::class)
 internal fun wasiCheckSeekIn(allocator: MemoryAllocator): Boolean{
     val metadataPtr=allocator.allocate(24)
@@ -31,6 +57,69 @@ internal fun wasiCheckSeekIn(allocator: MemoryAllocator): Boolean{
     }
     // Here one checks if second bit is 1. It represents a right to use fd_seek() and fd_pread()
     return (((metadataPtr+8).loadInt() shr 1) and 1)!=0
+}
+
+@OptIn(ExperimentalWasmInterop::class)
+internal fun wasiSeekImpl(allocator: MemoryAllocator,offset:Int){
+    val newOffset=allocator.allocate(4)
+    val ret = wasiRawFdSeek(
+        descriptor = STDIN,
+        offset=offset,
+        whence=WHENCECUR,
+        newOffset=newOffset.address.toInt()
+    )
+    if (ret != 0) {
+        throw WasiError(WasiErrorCode.entries[ret])
+    }
+}
+
+@OptIn(ExperimentalWasmInterop::class)
+internal fun wasiPReadImpl(
+    allocator: MemoryAllocator,
+    nullable: Boolean
+):ByteArray?{
+    var pos=0
+    var tmpByteArray:ByteArray = emptyArray<Byte>().toByteArray()
+    val ptr=allocator.allocate(PREADSIZE)
+    val scatterPtr=allocator.allocate(8)
+    (scatterPtr+0).storeInt(ptr.address.toInt())
+    (scatterPtr+4).storeInt(PREADSIZE)
+
+    val rp0 = allocator.allocate(4)
+    do {
+        val ret = wasiRawFdPRead(
+            descriptor = STDIN,
+            scatterPtr = scatterPtr.address.toInt(),
+            scatterSize = PREADSCATER,
+            offset = pos,
+            errorPtr = rp0.address.toInt()
+        )
+        if (ret != 0) {
+            throw WasiError(WasiErrorCode.entries[ret])
+        }
+        val readByteArray = ByteArray(rp0.loadInt()){i -> (ptr+i).loadByte()}
+        if (0x0A.toByte() in readByteArray){
+            val lnPos=readByteArray.indexOf(0x0A.toByte())
+            pos+=lnPos
+            tmpByteArray+=readByteArray.sliceArray(0 until lnPos)
+            if(tmpByteArray.last()==0x0D.toByte()) {
+                wasiSeekImpl(allocator=allocator,offset=--pos)
+                return tmpByteArray.sliceArray(0 until tmpByteArray.lastIndex)
+            }
+            wasiSeekImpl(allocator=allocator,offset=pos)
+                return tmpByteArray
+        }
+        tmpByteArray+=readByteArray
+        pos+=rp0.loadInt()
+    }while ( rp0.loadInt()==PREADSIZE )
+    if (rp0.loadInt() == 0 && tmpByteArray.isEmpty()) {
+        if (nullable) {
+            return null
+        }
+        throw RuntimeException("Tried to read from the end of file")
+    }
+    wasiSeekImpl(allocator=allocator,offset=pos)
+    return tmpByteArray
 }
 
 @OptIn(ExperimentalWasmInterop::class)
