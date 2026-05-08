@@ -56,9 +56,12 @@ internal fun wasiCheckSeekIn(allocator: MemoryAllocator): Boolean{
         throw WasiError(WasiErrorCode.entries[ret])
     }
     // Here one checks if second bit is 1. It represents a right to use fd_seek() and fd_pread()
-    return (((metadataPtr+8).loadInt() shr 1) and 1)!=0
+    return (((metadataPtr+8).loadInt() shr 2) and 1)!=0
 }
 
+/**
+ * Moves offset for file descriptor by `offset` from a current position
+ */
 @OptIn(ExperimentalWasmInterop::class)
 internal fun wasiSeekImpl(allocator: MemoryAllocator,offset:Int){
     val newOffset=allocator.allocate(4)
@@ -164,7 +167,11 @@ internal fun wasiReadImpl(
 }
 
 internal fun readImpl(nullable: Boolean):String?{
-    println(withScopedMemoryAllocator { allocator -> wasiCheckSeekIn(allocator=allocator)})
+    if(withScopedMemoryAllocator { allocator -> wasiCheckSeekIn(allocator=allocator)}) {
+        return withScopedMemoryAllocator { allocator ->
+            wasiPReadImpl(allocator=allocator, nullable=nullable)
+        }?.decodeToString()
+    }
     return withScopedMemoryAllocator { allocator ->
         wasiReadImpl(allocator=allocator, nullable=nullable)
     }?.decodeToString()
