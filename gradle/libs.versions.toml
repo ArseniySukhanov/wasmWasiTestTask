@@ -1,0 +1,5 @@
+[versions]
+kotlin="2.3.21"
+
+[plugins]
+multiPlatform={ id ="org.jetbrains.kotlin.multiplatform", version.ref="kotlin" }
