@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeWasmMemoryApi::class)
 
 import kotlin.wasm.unsafe.MemoryAllocator
-import kotlin.wasm.unsafe.Pointer
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
 
@@ -15,7 +14,7 @@ external fun wasiRawFdRead(descriptor: Int, scatterPtr: Int, scatterSize: Int, e
 internal fun wasiReadImpl(
     allocator: MemoryAllocator,
     nullable: Boolean
-):List<Byte>?{
+):ByteArray?{
     val res:MutableList<Byte> = mutableListOf()
     val ptr=allocator.allocate(1)
     val scatterPtr=allocator.allocate(8)
@@ -33,20 +32,19 @@ internal fun wasiReadImpl(
         res.add(ptr.loadByte())
     }while(ptr.loadByte().toInt() !=0x0A)
     res.removeLast()
-    return res
+    return ByteArray(res.size){i -> res[i]}
 }
 
-fun readln2():String{
+fun readln():String{
     return withScopedMemoryAllocator { allocator ->
         wasiReadImpl(allocator=allocator, nullable=false)
-    }?.toString() as String
+    }?.decodeToString() as String
 }
 
 fun main(){
     var s: String
     while (true){
-        println("STARTING")
-        s=readln2()
+        s=readln()
         println("Wasm received: $s")
     }
 }
