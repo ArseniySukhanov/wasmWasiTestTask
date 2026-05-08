@@ -17,3 +17,9 @@ kotlin{
         binaries.executable()
     }
 }
+
+tasks.register<DefaultTask>("runWasm"){
+    group="run"
+    description = "Compiles and executes .wasm executable on Node.js"
+    finalizedBy("wasmWasiNodeProductionRun")
+}
