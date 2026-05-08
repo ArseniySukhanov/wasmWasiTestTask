@@ -1,7 +1,7 @@
 fun main(){
-    var s: String
-    while (true){
-        s=readln()
+    var s: String?=readlnOrNull()
+    while (s!=null){
         println("Wasm received: $s")
+        s=readlnOrNull()
     }
 }

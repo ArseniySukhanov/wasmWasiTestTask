@@ -1,6 +1,7 @@
 @file:OptIn(UnsafeWasmMemoryApi::class)
 
 
+import kotlin.concurrent.atomics.atomicArrayOfNulls
 import kotlin.wasm.unsafe.MemoryAllocator
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
@@ -34,12 +35,17 @@ internal fun wasiReadImpl(
             errorPtr = rp0.address.toInt()
         )
         if (ret!=0) {
-            if (nullable){
-                return null
-            }
-            else{
                 throw WasiError(WasiErrorCode.entries[ret])
+        }
+        if(rp0.loadInt()==0){
+            if(tmpByteList.size==0)
+            {
+                if(nullable) {
+                    return null
+                }
+                throw kotlin.RuntimeException("Tried to read from the end of file")
             }
+            return ByteArray(tmpByteList.size - 1) { i -> tmpByteList[i] }
         }
         tmpByteList.add(ptr.loadByte())
     }while(ptr.loadByte().toInt() != 0x0A)
