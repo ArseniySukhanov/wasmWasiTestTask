@@ -44,7 +44,7 @@ internal fun wasiReadImpl(
         tmpByteList.add(ptr.loadByte())
     }while(ptr.loadByte().toInt() != 0x0A)
     if(tmpByteList.size>1 ) {
-        if(tmpByteList[-2].toInt() != 0x0D)
+       if(tmpByteList[tmpByteList.size-2].toInt() == 0x0D)
             return ByteArray(tmpByteList.size - 2) { i -> tmpByteList[i] }
     }
     return ByteArray(tmpByteList.size - 1) { i -> tmpByteList[i] }
