@@ -1,3 +1,7 @@
 fun main(){
-    println("Hello World!")
+    var s: String
+    while (true){
+        s=readln()
+        println(s)
+    }
 }
