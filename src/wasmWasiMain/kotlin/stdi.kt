@@ -1,7 +1,6 @@
 @file:OptIn(UnsafeWasmMemoryApi::class)
 
 
-import kotlin.concurrent.atomics.atomicArrayOfNulls
 import kotlin.wasm.unsafe.MemoryAllocator
 import kotlin.wasm.unsafe.UnsafeWasmMemoryApi
 import kotlin.wasm.unsafe.withScopedMemoryAllocator
@@ -38,12 +37,12 @@ internal fun wasiReadImpl(
                 throw WasiError(WasiErrorCode.entries[ret])
         }
         if(rp0.loadInt()==0){
-            if(tmpByteList.size==0)
+            if(tmpByteList.isEmpty())
             {
                 if(nullable) {
                     return null
                 }
-                throw kotlin.RuntimeException("Tried to read from the end of file")
+                throw RuntimeException("Tried to read from the end of file")
             }
             return ByteArray(tmpByteList.size - 1) { i -> tmpByteList[i] }
         }
@@ -57,8 +56,11 @@ internal fun wasiReadImpl(
 }
 
 /**
- * Reads a line of input from the standard input stream and returns it.
+ * Reads a line of input from the standard input stream and returns it, or throws a RuntimeException if EOF has already
+ * been reached when `readln` is called.
+ *
  * LF or CRLF is treated as the line terminator. Line terminator is not included in the returned string.
+ *
  * The input is interpreted as UTF-8.
  */
 fun readln():String{
@@ -67,6 +69,12 @@ fun readln():String{
     }?.decodeToString() as String
 }
 
+/**
+ * Reads a line of input from the standard input stream and returns it, or return null if EOF has already been reached
+ * when `readlnOrNull` is called.
+ *
+ * LF or CRLF is treated as the line terminator. Line terminator is not included in the returned string.
+ */
 fun readlnOrNull():String?{
     return withScopedMemoryAllocator { allocator ->
         wasiReadImpl(allocator=allocator, nullable=true)
