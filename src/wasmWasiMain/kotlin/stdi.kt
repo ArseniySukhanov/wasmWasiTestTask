@@ -7,9 +7,12 @@ import kotlin.wasm.unsafe.withScopedMemoryAllocator
 
 private const val STDIN=0
 
+/**
+ * Read from a file descriptor. Note: This is similar to `readv` in POSIX.
+ */
 @ExperimentalWasmInterop
 @WasmImport("wasi_snapshot_preview1", "fd_read")
-external fun wasiRawFdRead(descriptor: Int, scatterPtr: Int, scatterSize: Int, errorPtr: Int): Int
+private external fun wasiRawFdRead(descriptor: Int, scatterPtr: Int, scatterSize: Int, errorPtr: Int): Int
 
 @OptIn(ExperimentalWasmInterop::class)
 internal fun wasiReadImpl(
@@ -40,9 +43,18 @@ internal fun wasiReadImpl(
         }
         tmpByteList.add(ptr.loadByte())
     }while(ptr.loadByte().toInt() != 0x0A)
-    return ByteArray(tmpByteList.size-1){i -> tmpByteList[i]}
+    if(tmpByteList.size>1 ) {
+        if(tmpByteList[-2].toInt() != 0x0D)
+            return ByteArray(tmpByteList.size - 2) { i -> tmpByteList[i] }
+    }
+    return ByteArray(tmpByteList.size - 1) { i -> tmpByteList[i] }
 }
 
+/**
+ * Reads a line of input from the standard input stream and returns it.
+ * LF or CRLF is treated as the line terminator. Line terminator is not included in the returned string.
+ * The input is interpreted as UTF-8.
+ */
 fun readln():String{
     return withScopedMemoryAllocator { allocator ->
         wasiReadImpl(allocator=allocator, nullable=false)
