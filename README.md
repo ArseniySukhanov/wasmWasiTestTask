@@ -20,12 +20,12 @@ Other ways to pipe something to a standard input are supported as well.
  - While `writeln()` for Wasm/WASI already implemented, `readln()` is not yet. So I had to write my own `readln()` using
 WASI call `fd_read`
    - One also can instead of rewriting `readln()` just take bytes using `fd_read` and send them to `fd_write`. I decided
-to not do that because solution with `readln()` allows to reuse this code for different future cases, and maybe even
- to be contributed to a standard Kotlin library. Also working with linear memory is unsafe, so it is advisable to move 
+to not do that because solution with `readln()` allows one to reuse this code for different future cases and maybe even
+ to be contributed to a standard Kotlin library. Also, working with linear memory is unsafe, so it is advisable to move 
  to Kotlin methods instead of doing everything through WASI.
-   - Reading byte by byte is not the most optimal solution, however it is the simplest one. However, considering that 
+   - Reading byte-by-byte is not the most optimal solution, however it is the simplest one. However, considering that 
  `fd_pread` does not move file descriptor offset, if proper access provided, one can check with it for EOF, and then use
- a `fd_read` to read in one go. Another way, is to use `fd_read` and return offset using `fd_seek`.
+ a `fd_read` to read in one go. Another way is to use `fd_read` and return offset using `fd_seek`.
    - I have implemented reading in byte chunks in a `dev` branch of the repository. Unfortunately, standard input
  through standard sources like pipes or giving files as an input to Gradle tasks does not support `fd_seek`, and so 
  `readln()` function just defaults to byte by byte implementation. So the code is not applicable to this particular 
