@@ -26,11 +26,13 @@ to not do that because solution with `readln()` allows one to reuse this code fo
    - Reading byte-by-byte is not the most optimal solution, however it is the simplest one. However, considering that 
  `fd_pread` does not move file descriptor offset, if proper access provided, one can check with it for EOF, and then use
  a `fd_read` to read in one go. Another way is to use `fd_read` and return offset using `fd_seek`.
-   - I have implemented reading in byte chunks in a `dev` branch of the repository. Unfortunately, standard input
- through standard sources like pipes or giving files as an input to Gradle tasks does not support `fd_seek`, and so 
- `readln()` function just defaults to byte by byte implementation. So the code is not applicable to this particular 
- test task, and so I have not tested it. Still, I suppose it should work even if with small fixes. I think a way to test
- it is to use `path_open()` from WASI, but it goes beyond this task. 
+   - I have implemented reading in byte chunks in a `dev` branch of the repository. It uses `fd_pread` to read and then 
+ `fd_seek` to move file descriptor offset. Before that it checks that it can use them with `fd_fdstat_get` and in case 
+ descriptor does not support `fd_seek` moves to byte-by-byte implementation. Unfortunately, standard input through 
+ standard sources like pipes or giving files as an input to Gradle tasks does not support `fd_seek`, and so 
+ `readln()` function just takes a default solution. So the code is not applicable to this particular test task, and so I
+ have not tested it. Still, I suppose it should work even if with small fixes. I think a way to test it is to use
+ `path_open()` from WASI, but it goes beyond this task. 
  - If one just makes a task which compiles `.wasm` file and then executes it, one would not be able to provide standard
 input to the task. The task should be modified so Gradle provides its input to the Node.js (or other execution
 environment).
