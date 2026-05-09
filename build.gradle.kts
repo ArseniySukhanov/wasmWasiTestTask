@@ -21,6 +21,7 @@ kotlin{
 
 tasks.named<NodeJsExec>("wasmWasiNodeProductionRun"){
     standardInput=System.`in`
+    //standardInput=file("example.txt").inputStream()
 }
 
 tasks.register<DefaultTask>("runWasm"){

@@ -76,6 +76,9 @@ internal fun wasiSeekImpl(allocator: MemoryAllocator,offset:Int){
     }
 }
 
+/**
+ * Function to read from standard input byte by byte until /n or EOF
+ */
 @OptIn(ExperimentalWasmInterop::class)
 internal fun wasiPReadImpl(
     allocator: MemoryAllocator,
@@ -125,6 +128,10 @@ internal fun wasiPReadImpl(
     return tmpByteArray
 }
 
+/**
+ * Function to read from standard input, using fd_seek and fd_pread to read in chunks of multiple bytes until /n or EOF
+ * NOT TESTED!!!
+ */
 @OptIn(ExperimentalWasmInterop::class)
 internal fun wasiReadImpl(
     allocator: MemoryAllocator,
